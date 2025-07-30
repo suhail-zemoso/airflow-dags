@@ -10,7 +10,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id="etl_clientes",
+    dag_id="sample_dag",
     default_args=default_args,
     schedule="40 * * * *",
     catchup=False,
