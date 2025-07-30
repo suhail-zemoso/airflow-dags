@@ -12,7 +12,7 @@ default_args = {
 with DAG(
     dag_id="etl_clientes",
     default_args=default_args,
-    schedule_interval="40 * * * *",
+    schedule="40 * * * *",
     catchup=False,
     max_active_runs=1,
     render_template_as_native_obj=True,
