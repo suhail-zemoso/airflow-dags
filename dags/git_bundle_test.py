@@ -4,7 +4,7 @@ from datetime import datetime
 
 with DAG(
     "git_bundle_test",
-    start_date=datetime(2025, 1, 1),
+    start_date=datetime(2025, 1, 2),
     schedule=None,
     catchup=False,
 ) as dag:
