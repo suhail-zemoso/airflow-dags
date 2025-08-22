@@ -11,14 +11,6 @@ with DAG(
 
     t1 = BashOperator(
         task_id="whoami_task",
-        bash_command="""
-        echo "Starting task as $(whoami)"
-        echo "Home directory: $HOME"
-        echo "Current directory: $(pwd)"
-        echo "Environment:"
-        env | sort
-        whoami
-        echo "Task completed successfully"
-        """,
-        run_as_user="new_task_user",
+        bash_command="whoami",
+        run_as_user="run_as_user",
     )
