@@ -1,4 +1,5 @@
 import os
+import sys
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from datetime import datetime
@@ -11,48 +12,55 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # Test 1: Basic environment check
+    # Test 1: Basic environment check with Python environment setup
     t1 = BashOperator(
         task_id="env_check",
         bash_command="""
+        # Set up environment
+        export AIRFLOW_HOME="/opt/airflow"
+        export PYTHONPATH="$AIRFLOW_HOME:$PYTHONPATH"
+        
+        # Find Python site-packages
+        PYTHON_SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null || echo "/usr/local/lib/$(ls /usr/local/lib/ | grep python)/site-packages")
+        
         echo "=== Environment Check ==="
         echo "User: $(whoami)"
         echo "Groups: $(groups)"
         echo "Current dir: $(pwd)"
         echo "Airflow Home: $AIRFLOW_HOME"
-        echo "Python Path: $PYTHONPATH"
-        echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        echo "Python Path: $PYTHON_SITE_PACKAGES"
+        echo "Python Version: $(python3 --version 2>&1 || echo 'Python not found')"
         
-        echo -e "\n=== Python Environment ==="
-        which python3
-        python3 --version
-        
-        echo -e "\n=== Airflow Config ==="
-        if [ -f "$AIRFLOW_HOME/airflow.cfg" ]; then
-            echo "airflow.cfg exists"
-            ls -la "$AIRFLOW_HOME/airflow.cfg"
-            
-            # Check if we can read the config
-            if [ -r "$AIRFLOW_HOME/airflow.cfg" ]; then
-                echo -e "\nairflow.cfg contents (first 20 lines):"
-                head -n 20 "$AIRFLOW_HOME/airflow.cfg"
-            else
-                echo "Cannot read airflow.cfg"
-            fi
+        # Check for custom_bundles module
+        echo -e "\n=== Custom Bundles Check ==="
+        if [ -d "$PYTHON_SITE_PACKAGES/custom_bundles" ]; then
+            echo "custom_bundles found in: $PYTHON_SITE_PACKAGES/custom_bundles"
+            ls -la "$PYTHON_SITE_PACKAGES/custom_bundles"
         else
-            echo "airflow.cfg not found in $AIRFLOW_HOME/"
-            echo "Contents of $AIRFLOW_HOME/:"
-            ls -la "$AIRFLOW_HOME/"
+            echo "custom_bundles not found in $PYTHON_SITE_PACKAGES/"
+            echo "Contents of $PYTHON_SITE_PACKAGES/:"
+            ls -la "$PYTHON_SITE_PACKAGES/" | grep -i bundle || echo "No bundle-related packages found"
         fi
         
-        echo -e "\n=== Directory Permissions ==="
-        echo "/opt/airflow permissions:"
-        ls -ld /opt/airflow
-        echo -e "\n/opt/airflow/shared_dag_bundles permissions:"
-        ls -ld /opt/airflow/shared_dag_bundles
+        # Check Python path
+        echo -e "\n=== Python Environment ==="
+        echo "Python executable: $(which python3)"
+        python3 -c "import sys; print('\n'.join(sys.path))" 2>&1 || echo "Failed to get Python path"
         
-        echo -e "\n=== Sudo Access ==="
-        sudo -n -u run_as_suhail whoami && echo "Sudo access works" || echo "Sudo access failed"
+        # Check if we can import the required module
+        echo -e "\n=== Module Import Test ==="
+        python3 -c "
+import sys
+print(f'Python version: {sys.version}')
+try:
+    import custom_bundles
+    print('SUCCESS: Imported custom_bundles from:', custom_bundles.__file__)
+except ImportError as e:
+    print(f'ERROR: {e}')
+    print('\nCurrent sys.path:')
+    for p in sys.path:
+        print(f'  {p}')
+"
         
         echo "======================="
         """,
@@ -61,6 +69,8 @@ with DAG(
             'AIRFLOW_HOME': '/opt/airflow',
             'PYTHONPATH': '/opt/airflow',
             'PATH': os.environ.get('PATH', ''),
-            'LD_LIBRARY_PATH': os.environ.get('LD_LIBRARY_PATH', '')
+            'PYTHONIOENCODING': 'utf-8',
+            'LC_ALL': 'C.UTF-8',
+            'LANG': 'C.UTF-8'
         }
     )
