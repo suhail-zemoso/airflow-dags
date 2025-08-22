@@ -12,5 +12,5 @@ with DAG(
     t1 = BashOperator(
         task_id="whoami_task",
         bash_command="whoami",
-        run_as_user="new_task_user",
+        run_as_user="run_as_user",
     )
